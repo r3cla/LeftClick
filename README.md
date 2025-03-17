@@ -1,6 +1,6 @@
 # LeftClick
 
-A lightweight auto left clicker with variable intervals between clicks, based on the autoclicker feature in resclient by Gary's Hood.
+A lightweight auto left clicker with variable intervals between clicks.
 
 ## Features
 - Set fixed click intervals (seconds and milliseconds)
