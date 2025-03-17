@@ -1,4 +1,4 @@
-# LeftClick
+# MyClicker (Variable Auto Clicker)
 
 A lightweight auto left clicker with variable intervals between clicks.
 
