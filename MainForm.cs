@@ -27,9 +27,22 @@ public partial class MainForm : Form
     private Thread clickThread;
     private int intervalMinSeconds = 0;
     private int intervalMaxSeconds = 0;
-    private bool useRandomInterval = false;
     private Random random = new Random();
     private Point currentPosition;
+    
+    // New variables for enhancements
+    private int clickCount = 0;
+    private int maxClicks = 0;
+    private bool useMaxClicks = false;
+    private Label lblStatus;
+    private Label lblClickCount;
+    
+    // Controls that need class level access
+    private NumericUpDown numSeconds;
+    private NumericUpDown numMilliseconds;
+    private NumericUpDown numMinSeconds;
+    private NumericUpDown numMaxSeconds;
+    private bool useRandomInterval = false;
 
     public MainForm()
     {
@@ -40,37 +53,91 @@ public partial class MainForm : Form
     {
         // Set up form properties
         this.Text = "Auto Clicker";
-        this.Size = new Size(400, 240);
+        this.Size = new Size(400, 300);
         this.FormBorderStyle = FormBorderStyle.FixedSingle;
         this.MaximizeBox = false;
 
         // Create controls for fixed interval
         Label lblFixedInterval = new Label { Text = "Fixed Interval:", Location = new Point(20, 60), Size = new Size(120, 20) };
-        NumericUpDown numSeconds = new NumericUpDown { Location = new Point(140, 60), Size = new Size(60, 20), Minimum = 0, Maximum = 3600 };
+        numSeconds = new NumericUpDown { 
+            Location = new Point(140, 60), 
+            Size = new Size(60, 20), 
+            Minimum = 0, 
+            Maximum = 3600,
+            Value = 1
+        };
         
         Label lblMilliseconds = new Label { Text = "Milliseconds:", Location = new Point(210, 60), Size = new Size(90, 20) };
-        NumericUpDown numMilliseconds = new NumericUpDown { Location = new Point(300, 60), Size = new Size(70, 20), Minimum = 0, Maximum = 999 };
+        numMilliseconds = new NumericUpDown { 
+            Location = new Point(300, 60), 
+            Size = new Size(70, 20), 
+            Minimum = 0, 
+            Maximum = 999,
+            Value = 0
+        };
         
         // Create controls for random interval
         CheckBox chkRandomInterval = new CheckBox { Text = "Use Random Interval", Location = new Point(20, 90), Size = new Size(150, 20) };
         
         Label lblMinSeconds = new Label { Text = "Min Seconds:", Location = new Point(40, 120), Size = new Size(90, 20) };
-        NumericUpDown numMinSeconds = new NumericUpDown { Location = new Point(140, 120), Size = new Size(60, 20), Minimum = 0, Maximum = 3600 };
+        numMinSeconds = new NumericUpDown { 
+            Location = new Point(140, 120), 
+            Size = new Size(60, 20), 
+            Minimum = 0, 
+            Maximum = 3600,
+            Value = 1,
+            Enabled = false
+        };
         
         Label lblMaxSeconds = new Label { Text = "Max Seconds:", Location = new Point(210, 120), Size = new Size(90, 20) };
-        NumericUpDown numMaxSeconds = new NumericUpDown { Location = new Point(300, 120), Size = new Size(60, 20), Minimum = 1, Maximum = 3600, Value = 30 };
+        numMaxSeconds = new NumericUpDown { 
+            Location = new Point(300, 120), 
+            Size = new Size(60, 20), 
+            Minimum = 1, 
+            Maximum = 3600, 
+            Value = 30,
+            Enabled = false
+        };
+        
+        // Create controls for scheduled stop
+        CheckBox chkMaxClicks = new CheckBox { Text = "Stop After Clicks:", Location = new Point(20, 150), Size = new Size(120, 20) };
+        NumericUpDown numMaxClicks = new NumericUpDown { 
+            Location = new Point(140, 150), 
+            Size = new Size(70, 20), 
+            Minimum = 1, 
+            Maximum = 999999, 
+            Value = 100,
+            Enabled = false
+        };
         
         Button btnStart = new Button { Text = "Start (F1 or F6)", Location = new Point(20, 20), Size = new Size(170, 30) };
         Button btnStop = new Button { Text = "Stop (F2 or F7)", Location = new Point(200, 20), Size = new Size(170, 30) };
         
-        Label lblInstructions = new Label { Text = "1. Set interval(s)\n2. Hit start", Location = new Point(20, 160), Size = new Size(350, 50) };
+        Label lblInstructions = new Label { Text = "1. Set interval(s)\n2. Hit start", Location = new Point(20, 180), Size = new Size(350, 40) };
+        
+        // Status indicator and click counter
+        lblStatus = new Label { 
+            Text = "Status: Stopped", 
+            Location = new Point(20, 220), 
+            Size = new Size(170, 20),
+            ForeColor = Color.Red,
+            Font = new Font(this.Font, FontStyle.Bold)
+        };
+        
+        lblClickCount = new Label { 
+            Text = "Clicks: 0", 
+            Location = new Point(200, 220), 
+            Size = new Size(170, 20) 
+        };
 
         // Set up event handlers
         btnStart.Click += (s, e) => StartClicking();
         btnStop.Click += (s, e) => StopClicking();
         
-        numSeconds.ValueChanged += (s, e) => intervalMinSeconds = (int)numSeconds.Value;
-        numMilliseconds.ValueChanged += (s, e) => {};  // Will use as a base interval
+        // Set initial values for interval variables
+        intervalMinSeconds = (int)numMinSeconds.Value;
+        intervalMaxSeconds = (int)numMaxSeconds.Value;
+        maxClicks = (int)numMaxClicks.Value;
 
         chkRandomInterval.CheckedChanged += (s, e) => 
         {
@@ -94,16 +161,17 @@ public partial class MainForm : Form
             if (intervalMaxSeconds < numMinSeconds.Value)
                 numMinSeconds.Value = intervalMaxSeconds - 1;
         };
-
-        // Initial values
-        numMinSeconds.Value = 1;
-        numMaxSeconds.Value = 30;
-        intervalMinSeconds = 1;
-        intervalMaxSeconds = 30;
         
-        // Initial enabled state
-        numMinSeconds.Enabled = false;
-        numMaxSeconds.Enabled = false;
+        chkMaxClicks.CheckedChanged += (s, e) =>
+        {
+            useMaxClicks = chkMaxClicks.Checked;
+            numMaxClicks.Enabled = useMaxClicks;
+        };
+        
+        numMaxClicks.ValueChanged += (s, e) =>
+        {
+            maxClicks = (int)numMaxClicks.Value;
+        };
 
         // Add controls to form
         this.Controls.Add(lblFixedInterval);
@@ -115,9 +183,13 @@ public partial class MainForm : Form
         this.Controls.Add(numMinSeconds);
         this.Controls.Add(lblMaxSeconds);
         this.Controls.Add(numMaxSeconds);
+        this.Controls.Add(chkMaxClicks);
+        this.Controls.Add(numMaxClicks);
         this.Controls.Add(btnStart);
         this.Controls.Add(btnStop);
         this.Controls.Add(lblInstructions);
+        this.Controls.Add(lblStatus);
+        this.Controls.Add(lblClickCount);
 
         // Set up timer for mouse position tracking and hotkey detection
         System.Windows.Forms.Timer positionTimer = new System.Windows.Forms.Timer();
@@ -132,6 +204,12 @@ public partial class MainForm : Form
             return;
 
         isClicking = true;
+        clickCount = 0;
+        UpdateClickCount();
+        
+        // Update status indicator
+        lblStatus.Text = "Status: Running";
+        lblStatus.ForeColor = Color.Green;
         
         clickThread = new Thread(() => ClickingLoop());
         clickThread.IsBackground = true;
@@ -141,6 +219,13 @@ public partial class MainForm : Form
     private void StopClicking()
     {
         isClicking = false;
+        
+        // Update status indicator (safely from any thread)
+        this.Invoke((MethodInvoker)delegate {
+            lblStatus.Text = "Status: Stopped";
+            lblStatus.ForeColor = Color.Red;
+        });
+        
         if (clickThread != null && clickThread.IsAlive)
         {
             clickThread.Join(500); // Wait up to 500ms for thread to end
@@ -157,8 +242,16 @@ public partial class MainForm : Form
             // Perform the click at the current position
             PerformClick(pos.X, pos.Y);
             
+            // Check if we've reached max clicks
+            if (useMaxClicks && clickCount >= maxClicks)
+            {
+                StopClicking();
+                break;
+            }
+            
             // Calculate next interval
             int interval;
+            
             if (useRandomInterval)
             {
                 // Convert to milliseconds and get a random value in the range
@@ -168,8 +261,21 @@ public partial class MainForm : Form
             }
             else
             {
-                // Use fixed interval (default to 1 second if nothing set)
-                interval = Math.Max(1, intervalMinSeconds) * 1000;
+                // Get the current values directly from the controls
+                int seconds = 0;
+                int milliseconds = 0;
+                
+                this.Invoke((MethodInvoker)delegate {
+                    seconds = (int)numSeconds.Value;
+                    milliseconds = (int)numMilliseconds.Value;
+                });
+                
+                // Calculate total interval in milliseconds
+                interval = (seconds * 1000) + milliseconds;
+                
+                // Ensure at least a small delay
+                if (interval < 10)
+                    interval = 10; // Minimum 10ms delay
             }
             
             // Wait for the calculated interval
@@ -182,6 +288,18 @@ public partial class MainForm : Form
         // Click at the specified position
         mouse_event(MOUSEEVENTF_LEFTDOWN, x, y, 0, 0);
         mouse_event(MOUSEEVENTF_LEFTUP, x, y, 0, 0);
+        
+        // Increment click counter
+        clickCount++;
+        UpdateClickCount();
+    }
+    
+    private void UpdateClickCount()
+    {
+        // Update the click counter label (safely from any thread)
+        this.Invoke((MethodInvoker)delegate {
+            lblClickCount.Text = $"Clicks: {clickCount}";
+        });
     }
 
     private void PositionTimer_Tick(object sender, EventArgs e)
