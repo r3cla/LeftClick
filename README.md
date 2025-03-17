@@ -10,6 +10,3 @@ A lightweight auto left clicker with variable intervals between clicks, based on
 
 ## Requirements
 - Windows 64-bit operating system
-
-## License
-This is a reimplementation of the auto clicker functionality from rsclient, with additional functionality added.
